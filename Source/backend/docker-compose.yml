@@ -1,0 +1,16 @@
+# compose file to run a local postgres dev server
+version: '3'
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: contact-manager
+      POSTGRES_PASSWORD: db
+      POSTGRES_DB: contact-manager
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+volumes:
+  pg_data:
