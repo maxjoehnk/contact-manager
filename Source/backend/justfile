@@ -1,0 +1,21 @@
+run: db
+    cargo run
+
+migrate:
+    cargo sqlx migrate run
+
+prepare-db:
+    DATABASE_URL=postgres://contact-manager:db@localhost/contact-manager cargo sqlx prepare
+
+test:
+    cargo nextest run
+
+integration_test:
+    hurl requests/contacts.hurl
+
+db:
+    docker-compose up -d
+
+reset-db:
+    docker-compose down -v
+    docker-compose up -d

@@ -1,51 +1,38 @@
-use std::sync::Arc;
-use axum::{Extension, Json, middleware, Router};
-use axum::body::{Body, HttpBody};
-use axum::extract::State;
+use axum::{Json, Router};
+use axum::body::Body;
+use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::routing::{get, post};
-use serde::Deserialize;
-use crate::db::{DbConnnection, DbContext};
-use crate::db::repositories::ContactRepository;
+use axum::routing::{delete, get};
+use uuid::Uuid;
 
+use crate::db::DbContext;
 use crate::domain::*;
-use crate::events::*;
+use crate::domain::services::{ContactsService, OrganizationsService, PersonsService};
 use crate::http_api;
 
 pub fn router<S: Clone + Send + Sync + 'static>() -> Router<S, Body> {
     Router::new()
         .route("/", get(list_contacts))
         .route("/persons", get(list_persons).post(create_person))
-        // .route("/organization", post(create_organization))
+        .route("/persons/:contact_id", delete(delete_person))
+        .route("/organizations", get(list_organizations).post(create_organization))
+        .route("/organizations/:contact_id", delete(delete_organization))
 }
 
-async fn list_contacts(mut db: DbContext) -> http_api::Result<Json<Vec<Contact>>> {
-    Ok(Json(vec![]))
+async fn list_contacts(db: DbContext) -> http_api::Result<Json<Vec<Contact>>> {
+    let contacts = ContactsService.list(&db).await?;
+
+    Ok(Json(contacts))
 }
 
-async fn list_persons(mut db: DbContext) -> http_api::Result<Json<Vec<Person>>> {
-    let persons = ContactRepository.list_persons(&mut db).await?;
+async fn list_persons(db: DbContext) -> http_api::Result<Json<Vec<Person>>> {
+    let persons = PersonsService.list(&db).await?;
 
     Ok(Json(persons))
 }
 
-async fn create_person(mut db: DbContext, Json(person): Json<CreatePerson>) -> http_api::Result<(StatusCode, Json<ContactId>)> {
-    let contact_id = ContactId::new();
-    let event = ContactEvent {
-        contact_id,
-        event: ContactEventType::PersonAdded {
-            first_name: person.first_name.clone(),
-            last_name: person.last_name.clone(),
-            email: person.email.clone(),
-        },
-    };
-
-    ContactRepository.create_person(&mut db, Person {
-        id: contact_id,
-        first_name: person.first_name,
-        last_name: person.last_name,
-        email: person.email,
-    }).await?;
+async fn create_person(db: DbContext, Json(person): Json<CreatePerson>) -> http_api::Result<(StatusCode, Json<ContactId>)> {
+    let contact_id = PersonsService.create(&db, person).await?;
 
     Ok((
         StatusCode::CREATED,
@@ -53,22 +40,20 @@ async fn create_person(mut db: DbContext, Json(person): Json<CreatePerson>) -> h
     ))
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct CreatePerson {
-    first_name: Option<String>,
-    last_name: Option<String>,
-    email: Vec<EmailContact>,
+async fn delete_person(db: DbContext, Path(contact_id): Path<Uuid>) -> http_api::Result<StatusCode> {
+    PersonsService.delete(&db, contact_id.into()).await?;
+
+    Ok(StatusCode::NO_CONTENT, )
 }
 
-async fn create_organization(Json(organization): Json<CreateOrganization>) -> color_eyre::Result<(StatusCode, Json<ContactId>)> {
-    let contact_id = ContactId::new();
-    let event = ContactEvent {
-        contact_id,
-        event: ContactEventType::OrganizationAdded {
-            name: organization.name,
-            email: organization.email,
-        },
-    };
+async fn list_organizations(db: DbContext) -> http_api::Result<Json<Vec<Organization>>> {
+    let organizations = OrganizationsService.list(&db).await?;
+
+    Ok(Json(organizations))
+}
+
+async fn create_organization(db: DbContext, Json(organization): Json<CreateOrganization>) -> http_api::Result<(StatusCode, Json<ContactId>)> {
+    let contact_id = OrganizationsService.create(&db, organization).await?;
 
     Ok((
         StatusCode::CREATED,
@@ -76,8 +61,9 @@ async fn create_organization(Json(organization): Json<CreateOrganization>) -> co
     ))
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct CreateOrganization {
-    name: String,
-    email: Vec<EmailContact>,
+async fn delete_organization(db: DbContext, Path(contact_id): Path<Uuid>) -> http_api::Result<StatusCode> {
+    OrganizationsService.delete(&db, contact_id.into()).await?;
+
+    Ok(StatusCode::NO_CONTENT, )
 }
+

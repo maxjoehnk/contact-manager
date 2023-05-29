@@ -1,7 +1,9 @@
 pub use contacts::*;
-pub use events::*;
+pub use persons::*;
+pub use organizations::*;
 pub use distribution_lists::*;
 
 mod contacts;
-mod events;
+mod organizations;
+mod persons;
 mod distribution_lists;

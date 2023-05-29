@@ -1,11 +1,10 @@
-use std::task::{Context, Poll};
 use async_trait::async_trait;
 use axum::extract::{FromRequestParts, State};
-use axum::http::{Request, StatusCode};
+use axum::http::Request;
 use axum::http::request::Parts;
 use axum::middleware::Next;
 use axum::response::Response;
-use tower::{Layer, Service};
+
 use crate::db::{DbConnnection, DbContext, WeakDbContext};
 use crate::http_api;
 
@@ -65,10 +64,10 @@ pub async fn with_db<B>(State(db): State<DbConnnection>, mut req: Request<B>, ne
 
 #[async_trait]
 impl<S> FromRequestParts<S> for DbContext
-where S: Send + Sync {
+    where S: Send + Sync {
     type Rejection = http_api::ServiceError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let db_context = parts.extensions.get::<WeakDbContext>().unwrap();
 
         Ok(db_context.upgrade())

@@ -1,13 +1,12 @@
-use std::cell::RefCell;
-use std::future::Future;
-use std::ops::{Deref, DerefMut};
-use std::process::Output;
+use std::fmt::{Debug};
 use std::sync::{Arc, Weak};
-use sqlx::PgPool;
+use sqlx::{Describe, Either, Error, Execute, Executor, PgPool};
+use sqlx::database::HasStatement;
 use sqlx::postgres::PgPoolOptions;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex,};
+use futures::future::{BoxFuture, FutureExt};
+use futures::stream::{BoxStream, StreamExt};
 
-mod entities;
 pub mod repositories;
 
 #[derive(Clone, Debug)]
@@ -17,7 +16,7 @@ pub struct DbConnnection {
 
 type InnerDbContext = Mutex<sqlx::Transaction<'static, sqlx::Postgres>>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct DbContext(Arc<InnerDbContext>);
 
@@ -31,7 +30,7 @@ impl DbContext {
         Ok(transaction)
     }
 
-    pub async fn commit(mut self) -> color_eyre::Result<()> {
+    pub async fn commit(self) -> color_eyre::Result<()> {
         let transaction = Arc::try_unwrap(self.0).unwrap();
         let transaction = transaction.into_inner();
         transaction.commit().await?;
@@ -49,17 +48,51 @@ impl WeakDbContext {
     }
 }
 
-impl Deref for DbContext {
-    type Target = sqlx::Transaction<'static, sqlx::Postgres>;
+impl<'c> Executor<'c> for &'c DbContext {
+    type Database = sqlx::Postgres;
 
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
+    fn fetch_many<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<
+        'e,
+        Result<
+            Either<<Self::Database as sqlx::Database>::QueryResult, <Self::Database as sqlx::Database>::Row>,
+            sqlx::Error,
+        >,
+    > where
+        'c: 'e,
+        E: Execute<'q, Self::Database>{
+        // TODO: this is not optimal as it will capture all the rows in memory before building a new stream
+        let items = async {
+            let mut guard = self.0.lock().await;
+            guard.fetch_many(query).collect::<Vec<_>>().await
+        };
+        items
+            .into_stream()
+            .flat_map(|items| futures::stream::iter(items))
+            .boxed()
     }
-}
 
-impl DerefMut for DbContext {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        Arc::get_mut(&mut self.0).unwrap()
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Option<<Self::Database as sqlx::Database>::Row>, Error>>
+        where 'c: 'e, E: Execute<'q, Self::Database>
+    {
+        async {
+            let mut guard = self.0.lock().await;
+            guard.fetch_optional(query).await
+        }.boxed()
+    }
+
+    fn prepare_with<'e, 'q: 'e>(self, sql: &'q str, parameters: &'e [<Self::Database as sqlx::Database>::TypeInfo]) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+        where 'c: 'e {
+        async {
+            let mut guard = self.0.lock().await;
+            guard.prepare_with(sql, parameters).await
+        }.boxed()
+    }
+
+    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> where 'c: 'e {
+        async {
+            let mut guard = self.0.lock().await;
+            guard.describe(sql).await
+        }.boxed()
     }
 }
 

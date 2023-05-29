@@ -1,6 +1,4 @@
-
 mod domain;
-mod events;
 mod db;
 mod http_api;
 

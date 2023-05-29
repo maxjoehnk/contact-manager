@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Source/backend/backend.iml" filepath="$PROJECT_DIR$/Source/backend/backend.iml" />
       <module fileurl="file://$PROJECT_DIR$/Source/frontend/frontend.iml" filepath="$PROJECT_DIR$/Source/frontend/frontend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Source/frontend/android/frontend_android.iml" filepath="$PROJECT_DIR$/Source/frontend/android/frontend_android.iml" />
     </modules>
   </component>
 </project>

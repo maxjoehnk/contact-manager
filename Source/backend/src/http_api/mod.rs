@@ -1,22 +1,20 @@
 use std::net::SocketAddr;
 
-use axum::{Json, Router};
+use axum::{ Router};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
-use serde::Deserialize;
 
 use crate::db::DbConnnection;
-use crate::domain::{Contact, ContactId, EmailContact, Person};
-use crate::events::{ContactEvent, ContactEventType};
 
 mod contacts;
 mod middleware;
+mod distribution_lists;
 
 pub async fn host(db: DbConnnection) -> color_eyre::Result<()> {
     let v1_api = Router::new()
         .nest("/contacts", contacts::router())
+        .nest("/distributionLists", distribution_lists::router())
         .route_layer(from_fn_with_state(db.clone(), middleware::with_db));
     let app = Router::new().nest("/api/v1", v1_api);
 
@@ -33,6 +31,7 @@ pub struct ServiceError(color_eyre::Report);
 
 impl IntoResponse for ServiceError {
     fn into_response(self) -> Response {
+        tracing::error!("{:?}", self.0);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             self.0.to_string()
