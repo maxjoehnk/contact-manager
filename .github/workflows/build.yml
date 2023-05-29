@@ -1,0 +1,42 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build-backend:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release
+        working-directory: Source/backend
+
+  build-frontend:
+    strategy:
+      matrix:
+        target: [linux, windows, macos, apk]
+        include:
+          - target: linux
+            os: ubuntu-latest
+          - target: windows
+            os: windows-latest
+          - target: macos
+            os: macOS-latest
+          - target: android
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+        - uses: actions/checkout@v2
+        - uses: subosito/flutter-action@v1
+          with:
+            channel: stable
+        - name: Build
+          run: flutter build ${{ matrix.target }}
+          working-directory: Source/frontend
