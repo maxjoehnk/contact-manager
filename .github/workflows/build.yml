@@ -9,7 +9,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -33,7 +33,7 @@ jobs:
             os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
         - uses: subosito/flutter-action@v2
           with:
             channel: stable
