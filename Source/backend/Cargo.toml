@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sqlx = { version = "0.6", features = ["postgres", "macros", "runtime-tokio-rustls", "uuid", "chrono", "json"] }
+sqlx = { version = "0.8", features = ["postgres", "macros", "runtime-tokio-rustls", "uuid", "chrono", "json"] }
 async-trait = "0.1"
 color-eyre = "0.6"
 tokio = { version = "1", features = ["tracing", "macros", "rt-multi-thread"] }
